@@ -129,8 +129,8 @@ public class Robot extends IterativeRobot {
 		} else {
 			scale = 0.5;
 		}
-
 		drive.tankDrive(leftStick.getY() * scale, rightStick.getY() * scale); 
+		intake.set(leftStick.getThrottle());
 		reportAHRS();
 	}
 
