@@ -34,19 +34,17 @@ import edu.wpi.first.wpilibj.CameraServer;
  * directory.
  */
 public class Robot extends IterativeRobot {
-	final String defaultAuto = "Default";
-	final String customAuto = "My Auto";
-	String autoSelected;
-	SendableChooser chooser;
 
-	Joystick leftStick = new Joystick(0);
+	Joystick leftStick  = new Joystick(0);
 	Joystick rightStick = new Joystick(1);
 
-	Talon leftMotor = new Talon(0);
-	Talon rightMotor = new Talon(1);
+	Talon leftMotor   = new Talon(0);
+	Talon rightMotor  = new Talon(1);
+	Talon intake      = new Talon(2);
 
 	RobotDrive drive = new RobotDrive(leftMotor, rightMotor);
-	//camera
+	
+	//camera variables
 	int session;
 	Image frame;
 
@@ -59,13 +57,6 @@ public class Robot extends IterativeRobot {
 	 * used for any initialization code.
 	 */
 	public void robotInit() {
-
-		System.out.println("Hello");
-
-		chooser = new SendableChooser();
-		chooser.addDefault("Default Auto", defaultAuto);
-		chooser.addObject("My Auto", customAuto);
-		SmartDashboard.putData("Auto choices", chooser);
 
 		frame = NIVision.imaqCreateImage(NIVision.ImageType.IMAGE_RGB, 0);
 
@@ -95,9 +86,6 @@ public class Robot extends IterativeRobot {
 	 * If using the SendableChooser make sure to add them to the chooser code above as well.
 	 */
 	public void autonomousInit() {
-		autoSelected = (String) chooser.getSelected();
-		//		autoSelected = SmartDashboard.getString("Auto Selector", defaultAuto);
-		System.out.println("Auto selected: " + autoSelected);
 		ahrs.zeroYaw();
 		autoTimer.reset();
 		autoTimer.start();
@@ -107,13 +95,15 @@ public class Robot extends IterativeRobot {
 	 * This function is called periodically during autonomous
 	 */
 	public void autonomousPeriodic() {
+		final double kP = 0.05;
+
 		if (autoTimer.get() <= 4) {
 			double yaw = ahrs.getYaw();
-			double kP = 0.05;
-			double c = 0.5; // motor power
-			double d = kP * yaw; // turning amount
-			double left = (c+d)/2;
-			double right = (c-d)/2;
+			double c = 0.5;       // motor power - common mode
+			double d = kP * yaw;  // turning amount - differential mode
+			double left = (c+d);
+			double right = (c-d);
+			
 			drive.tankDrive(left, right);
 			reportAHRS();
 		} else {
