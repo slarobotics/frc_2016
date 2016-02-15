@@ -37,12 +37,15 @@ public class Robot extends IterativeRobot {
 
 	Joystick leftStick  = new Joystick(0);
 	Joystick rightStick = new Joystick(1);
+	Joystick operatorStick = new Joystick(2);
 
-	Talon leftMotor   = new Talon(0);
-	Talon rightMotor  = new Talon(1);
-	Talon intake      = new Talon(2);
+	Talon frontLeftMotor   = new Talon(0);
+	Talon rearLeftMotor  = new Talon(1);
+	Talon frontRightMotor = new Talon(2);
+	Talon rearRightMotor = new Talon(3);
+	Talon intake      = new Talon(4);
 
-	RobotDrive drive = new RobotDrive(leftMotor, rightMotor);
+	RobotDrive drive = new RobotDrive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor);
 	
 	//camera variables
 	int session;
@@ -130,7 +133,7 @@ public class Robot extends IterativeRobot {
 			scale = 0.5;
 		}
 		drive.tankDrive(leftStick.getY() * scale, rightStick.getY() * scale); 
-		intake.set(leftStick.getThrottle());
+		intake.set(operatorStick.getY());
 		reportAHRS();
 	}
 
