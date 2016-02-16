@@ -44,6 +44,7 @@ public class Robot extends IterativeRobot {
 	Talon frontRightMotor = new Talon(2);
 	Talon rearRightMotor = new Talon(3);
 	Talon intake      = new Talon(4);
+	Talon intake2 = new Talon(5);
 
 	RobotDrive drive = new RobotDrive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor);
 	
@@ -132,8 +133,9 @@ public class Robot extends IterativeRobot {
 		} else {
 			scale = 0.5;
 		}
-		drive.tankDrive(leftStick.getY() * scale, rightStick.getY() * scale); 
-		intake.set(operatorStick.getY());
+		drive.tankDrive(-leftStick.getY() * scale, -rightStick.getY() * scale); 
+		intake.set(-operatorStick.getY() / 2);
+		intake2.set(operatorStick.getY() / 2);
 		reportAHRS();
 	}
 
