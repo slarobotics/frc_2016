@@ -35,25 +35,26 @@ import edu.wpi.first.wpilibj.CameraServer;
  */
 public class Robot extends IterativeRobot {
 
-	Joystick leftStick  = new Joystick(0);
-	Joystick rightStick = new Joystick(1);
+	Joystick leftStick     = new Joystick(0);
+	Joystick rightStick    = new Joystick(1);
 	Joystick operatorStick = new Joystick(2);
 
 	Talon frontLeftMotor   = new Talon(0);
-	Talon rearLeftMotor  = new Talon(1);
-	Talon frontRightMotor = new Talon(2);
-	Talon rearRightMotor = new Talon(3);
-	Talon intake      = new Talon(4);
-	Talon intake2 = new Talon(5);
+	Talon rearLeftMotor    = new Talon(1);
+	Talon frontRightMotor  = new Talon(2);
+	Talon rearRightMotor   = new Talon(3);
+
+	Talon intake1          = new Talon(4);
+	Talon intake2          = new Talon(5);
 
 	RobotDrive drive = new RobotDrive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor);
-	
+
 	//camera variables
 	int session;
 	Image frame;
 
 	AHRS ahrs;
-	
+
 	Timer autoTimer = new Timer();
 
 	/**
@@ -99,15 +100,16 @@ public class Robot extends IterativeRobot {
 	 * This function is called periodically during autonomous
 	 */
 	public void autonomousPeriodic() {
-		final double kP = 0.05;
+		final double kP = -0.01;
+		final double driveTime = 4.0; // drive time in seconds
 
-		if (autoTimer.get() <= 4) {
+		if (autoTimer.get() <= driveTime) {
 			double yaw = ahrs.getYaw();
-			double c = 0.5;       // motor power - common mode
-			double d = kP * yaw;  // turning amount - differential mode
-			double left = (c+d);
+			double c = 0.65;       // motor power - common mode
+			double d = kP * yaw;   // turning amount - differential mode
+			double left  = (c+d);
 			double right = (c-d);
-			
+
 			drive.tankDrive(left, right);
 			reportAHRS();
 		} else {
@@ -126,17 +128,30 @@ public class Robot extends IterativeRobot {
 	public void teleopPeriodic() {
 		NIVision.IMAQdxGrab(session, frame, 1);
 		CameraServer.getInstance().setImage(frame);
-		double scale = 0.5;
+		double scale = 0.75;
 
 		if ( leftStick.getTrigger() || rightStick.getTrigger() ) {
 			scale = 1;
 		} else {
-			scale = 0.5;
+			scale = 0.75;
 		}
 		drive.tankDrive(-leftStick.getY() * scale, -rightStick.getY() * scale); 
-		intake.set(-operatorStick.getY() / 2);
-		intake2.set(operatorStick.getY() / 2);
+
+		this.setIntake(-operatorStick.getY());
+
 		reportAHRS();
+	}
+
+	public void setIntake (double level) {
+		
+		// scale down power for pulling the ball in but allow full power for output.
+		if (level > 0) {
+			level *= 0.5;
+		}
+		
+		// Make sure to set intake1 and intake2 to spin in opposition
+		intake1.set(-level);
+		intake2.set(level);
 	}
 
 	/**
