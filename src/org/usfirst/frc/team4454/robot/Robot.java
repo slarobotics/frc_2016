@@ -135,11 +135,29 @@ public class Robot extends IterativeRobot {
 		} else {
 			scale = 0.75;
 		}
-		drive.tankDrive(-leftStick.getY() * scale, -rightStick.getY() * scale); 
-
-		this.setIntake(-operatorStick.getY());
+		//drive.tankDrive(-leftStick.getY() * scale, -rightStick.getY() * scale); 
+		adaptiveDrive(-leftStick.getY() * scale, -rightStick.getY() * scale);
+		
+		if(operatorStick.getTrigger()){
+			this.setIntake(-operatorStick.getY() * 0.1);
+		}
+		else{
+			this.setIntake(-operatorStick.getY());
+		}
 
 		reportAHRS();
+	}
+	
+	public void adaptiveDrive(double l, double r){
+		// alpha is a parameter between 0 and 1
+		final double alpha = 0.5;
+		double c = 0.5 * (l+r);
+		double d = 0.5 * (l-r);
+		double scale = (1 - (alpha * c * c));
+		d *= scale;
+		l = c + d;
+		r = c - d;
+		drive.tankDrive(l, r);
 	}
 
 	public void setIntake (double level) {
