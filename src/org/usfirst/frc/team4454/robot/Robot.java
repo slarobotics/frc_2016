@@ -1,4 +1,3 @@
-
 package org.usfirst.frc.team4454.robot;
 
 
@@ -25,6 +24,8 @@ import com.ni.vision.NIVision;
 import com.ni.vision.NIVision.Image;
 import edu.wpi.first.wpilibj.CameraServer;
 
+import edu.wpi.first.wpilibj.Ultrasonic;
+
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -35,26 +36,28 @@ import edu.wpi.first.wpilibj.CameraServer;
  */
 public class Robot extends IterativeRobot {
 
-	Joystick leftStick     = new Joystick(0);
-	Joystick rightStick    = new Joystick(1);
+	Joystick leftStick  = new Joystick(0);
+	Joystick rightStick = new Joystick(1);
 	Joystick operatorStick = new Joystick(2);
 
 	Talon frontLeftMotor   = new Talon(0);
-	Talon rearLeftMotor    = new Talon(1);
-	Talon frontRightMotor  = new Talon(2);
-	Talon rearRightMotor   = new Talon(3);
-
-	Talon intake1          = new Talon(4);
-	Talon intake2          = new Talon(5);
+	Talon rearLeftMotor  = new Talon(1);
+	Talon frontRightMotor = new Talon(2);
+	Talon rearRightMotor = new Talon(3);
+	Talon intake      = new Talon(4);
 
 	RobotDrive drive = new RobotDrive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor);
-
+	
+	Ultrasonic ultraX = new Ultrasonic(1,1); // creates the ultra object and assigns ultra to be an ultrasonic sensor which uses DigitalOutput 1 for 
+    // the echo pulse and DigitalInput 1 for the trigger pulse, HORIZONTAL
+	Ultrasonic ultraY = new Ultrasonic(1,1);
+	
 	//camera variables
 	int session;
 	Image frame;
 
 	AHRS ahrs;
-
+	
 	Timer autoTimer = new Timer();
 
 	/**
@@ -62,6 +65,9 @@ public class Robot extends IterativeRobot {
 	 * used for any initialization code.
 	 */
 	public void robotInit() {
+		
+		ultraX.setAutomaticMode(true); // turns on automatic mode
+		ultraY.setAutomaticMode(true); // turns on automatic mode
 
 		frame = NIVision.imaqCreateImage(NIVision.ImageType.IMAGE_RGB, 0);
 
@@ -100,21 +106,23 @@ public class Robot extends IterativeRobot {
 	 * This function is called periodically during autonomous
 	 */
 	public void autonomousPeriodic() {
-		final double kP = -0.01;
-		final double driveTime = 4.0; // drive time in seconds
+		final double kP = 0.05;
 
-		if (autoTimer.get() <= driveTime) {
+		if (autoTimer.get() <= 4) {
 			double yaw = ahrs.getYaw();
-			double c = 0.65;       // motor power - common mode
-			double d = kP * yaw;   // turning amount - differential mode
-			double left  = (c+d);
+			double c = 0.5;       // motor power - common mode
+			double d = kP * yaw;  // turning amount - differential mode
+			double left = (c+d);
 			double right = (c-d);
-
+			
 			drive.tankDrive(left, right);
 			reportAHRS();
 		} else {
 			drive.tankDrive(0, 0);
 		}
+		ultrasonicSample(ultraX);
+		ultrasonicSample(ultraY);
+		
 	}
 
 	public void teleopInit() {		
@@ -128,48 +136,16 @@ public class Robot extends IterativeRobot {
 	public void teleopPeriodic() {
 		NIVision.IMAQdxGrab(session, frame, 1);
 		CameraServer.getInstance().setImage(frame);
-		double scale = 0.75;
+		double scale = 0.5;
 
 		if ( leftStick.getTrigger() || rightStick.getTrigger() ) {
 			scale = 1;
 		} else {
-			scale = 0.75;
+			scale = 0.5;
 		}
-		//drive.tankDrive(-leftStick.getY() * scale, -rightStick.getY() * scale); 
-		adaptiveDrive(-leftStick.getY() * scale, -rightStick.getY() * scale);
-		
-		if(operatorStick.getTrigger()){
-			this.setIntake(-operatorStick.getY() * 0.1);
-		}
-		else{
-			this.setIntake(-operatorStick.getY());
-		}
-
+		drive.tankDrive(leftStick.getY() * scale, rightStick.getY() * scale); 
+		intake.set(operatorStick.getY());
 		reportAHRS();
-	}
-	
-	public void adaptiveDrive(double l, double r){
-		// alpha is a parameter between 0 and 1
-		final double alpha = 0.5;
-		double c = 0.5 * (l+r);
-		double d = 0.5 * (l-r);
-		double scale = (1 - (alpha * c * c));
-		d *= scale;
-		l = c + d;
-		r = c - d;
-		drive.tankDrive(l, r);
-	}
-
-	public void setIntake (double level) {
-		
-		// scale down power for pulling the ball in but allow full power for output.
-		if (level > 0) {
-			level *= 0.5;
-		}
-		
-		// Make sure to set intake1 and intake2 to spin in opposition
-		intake1.set(-level);
-		intake2.set(level);
 	}
 
 	/**
@@ -211,5 +187,13 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putNumber(   "IMU_YawRateDPS",       ahrs.getRate());
 
 	}
+	
+	/**
+	 * The below code is to get the range (in inches) from the ultrasonic.
+	 */
+	
+	public void ultrasonicSample(Ultrasonic ultra) {
+    	double range = ultra.getRangeInches(); // reads the range on the ultrasonic sensor
+    }
 
 }
