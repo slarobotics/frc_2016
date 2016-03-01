@@ -1,6 +1,5 @@
 package org.usfirst.frc.team4454.robot;
 
-
 import com.kauailabs.navx.frc.AHRS;
 import com.ni.vision.NIVision.Image;
 
