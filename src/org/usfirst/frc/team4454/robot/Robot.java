@@ -56,7 +56,14 @@ public class Robot extends IterativeRobot {
 	AHRS ahrs;
 
 	Timer autoTimer = new Timer();
-
+	Timer backupTimer = new Timer();
+	boolean backup = false;
+	double backupTime = 0.02;
+	
+	String[] autonomousModes = {"forward", "backward"};
+	int autonomousMode = 0;
+	boolean autoModeButtonDown = false;
+	
 	/**
 	 * This function is run when the robot is first started up and should be
 	 * used for any initialization code.
@@ -100,23 +107,51 @@ public class Robot extends IterativeRobot {
 	 * This function is called periodically during autonomous
 	 */
 	public void autonomousPeriodic() {
-		final double kP = -0.01;
-		final double driveTime = 4.0; // drive time in seconds
-
+		double direction = 1;
+		switch(autonomousModes[autonomousMode]){
+		case "forward":
+			direction = 1;
+			break;
+		case "backward":
+			direction = -1;
+			break;
+		}
+		final double driveTime = 4.5; // drive time in seconds
+		double power = 0.65;
+		SmartDashboard.putBoolean("Moving", ahrs.isMoving());
 		if (autoTimer.get() <= driveTime) {
-			double yaw = ahrs.getYaw();
-			double c = 0.65;       // motor power - common mode
-			double d = kP * yaw;   // turning amount - differential mode
-			double left  = (c+d);
-			double right = (c-d);
-
-			drive.tankDrive(left, right);
+			if(!ahrs.isMoving() && power < 1 && autoTimer.get() > 0){
+				backupTimer.reset();
+				backupTimer.start();
+				backup = true;
+				power = 1;
+			}
+			if(!backup){
+				PIDDrive(power * direction);
+			}
 			reportAHRS();
 		} else {
 			drive.tankDrive(0, 0);
 		}
+		while(backup && backupTimer.get() < backupTime){
+			PIDDrive(-power * direction);
+		}
+		if(backupTimer.get() >= backupTime){
+			backup = false;
+			backupTimer.reset();
+		}
 	}
+	void PIDDrive(double power){
+		final double kP = -0.01;
+		double yaw = ahrs.getYaw();
+		double c = power;       // motor power - common mode
+		
+		double d = kP * yaw;   // turning amount - differential mode
+		double left  = (c+d);
+		double right = (c-d);
 
+		drive.tankDrive(left, right);
+	}
 	public void teleopInit() {		
 		NIVision.IMAQdxStartAcquisition(session);
 		ahrs.zeroYaw();
@@ -138,13 +173,19 @@ public class Robot extends IterativeRobot {
 		//drive.tankDrive(-leftStick.getY() * scale, -rightStick.getY() * scale); 
 		adaptiveDrive(-leftStick.getY() * scale, -rightStick.getY() * scale);
 		
-		if(operatorStick.getTrigger()){
+		/*if(operatorStick.getTrigger()){
 			this.setIntake(-operatorStick.getY() * 0.1);
 		}
 		else{
 			this.setIntake(-operatorStick.getY());
-		}
-
+		}*/
+		
+		if(Math.abs(operatorStick.getRawAxis(2)) > 0.02)
+			this.setIntake(operatorStick.getRawAxis(2));
+		else if(Math.abs(operatorStick.getRawAxis(3)) > 0.02)
+			this.setIntake(-operatorStick.getRawAxis(3));
+		else
+			this.setIntake(0);
 		reportAHRS();
 	}
 	
@@ -179,6 +220,20 @@ public class Robot extends IterativeRobot {
 	public void disabledInit(){
 		NIVision.IMAQdxStopAcquisition(session);
 	}
+	
+	public void disabledPeriodic(){
+		if(operatorStick.getRawButton(4) && !autoModeButtonDown){
+			autoModeButtonDown = true;
+			autonomousMode++;
+			if(autonomousMode >= autonomousModes.length){
+				autonomousMode = 0;
+			}
+		}
+		if(!operatorStick.getRawButton(4)){
+			autoModeButtonDown = false;
+		}
+		SmartDashboard.putString("Auto Mode", autonomousModes[autonomousMode]);
+	}
 
 	/**
 	 * This function is called periodically during test mode
@@ -209,6 +264,12 @@ public class Robot extends IterativeRobot {
 
 		SmartDashboard.putNumber(   "IMU_TotalYaw",         ahrs.getAngle());
 		SmartDashboard.putNumber(   "IMU_YawRateDPS",       ahrs.getRate());
+		
+		SmartDashboard.putNumber(   "IMU_Accel_X",          ahrs.getWorldLinearAccelX());
+		SmartDashboard.putNumber(   "IMU_Accel_Y",          ahrs.getWorldLinearAccelY());
+		 SmartDashboard.putNumber(   "Velocity_Y",           ahrs.getVelocityY());
+		SmartDashboard.putNumber(   "Velocity_X",           ahrs.getVelocityX());
+		
 
 	}
 
