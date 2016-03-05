@@ -49,9 +49,7 @@ public class Robot extends IterativeRobot {
 
 	RobotDrive drive = new RobotDrive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor);
 
-	//camera variables
-	int session;
-	Image frame;
+	Camera camera = new Camera();
 
 	AHRS ahrs;
 
@@ -70,13 +68,7 @@ public class Robot extends IterativeRobot {
 	 */
 	public void robotInit() {
 
-		frame = NIVision.imaqCreateImage(NIVision.ImageType.IMAGE_RGB, 0);
-
-		// the camera name (ex "cam0") can be found through the roborio web interface
-		session = NIVision.IMAQdxOpenCamera("cam0",
-				NIVision.IMAQdxCameraControlMode.CameraControlModeController);
-		NIVision.IMAQdxConfigureGrab(session);
-
+		camera.start();
 
 		try {
 			/* Communicate w/navX MXP via the MXP SPI Bus.                                     */
@@ -153,7 +145,7 @@ public class Robot extends IterativeRobot {
 		drive.tankDrive(left, right);
 	}
 	public void teleopInit() {		
-		NIVision.IMAQdxStartAcquisition(session);
+		camera.enable();
 		ahrs.zeroYaw();
 	}
 
@@ -161,8 +153,6 @@ public class Robot extends IterativeRobot {
 	 * This function is called periodically during operator control
 	 */
 	public void teleopPeriodic() {
-		NIVision.IMAQdxGrab(session, frame, 1);
-		CameraServer.getInstance().setImage(frame);
 		double scale = 0.75;
 
 		if ( leftStick.getTrigger() || rightStick.getTrigger() ) {
@@ -218,7 +208,8 @@ public class Robot extends IterativeRobot {
 	 * You can use it to reset subsystems before shutting down.
 	 */
 	public void disabledInit(){
-		NIVision.IMAQdxStopAcquisition(session);
+		if(camera.status)
+			camera.disable();
 	}
 	
 	public void disabledPeriodic(){
