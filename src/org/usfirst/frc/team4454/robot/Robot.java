@@ -49,7 +49,7 @@ public class Robot extends IterativeRobot {
 
 	RobotDrive drive = new RobotDrive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor);
 
-	Camera camera = new Camera();
+	Camera camera;
 
 	AHRS ahrs;
 
@@ -66,8 +66,11 @@ public class Robot extends IterativeRobot {
 	 * This function is run when the robot is first started up and should be
 	 * used for any initialization code.
 	 */
+	@Override
 	public void robotInit() {
 
+		System.out.println("Starting camera thread");
+		camera = new Camera();
 		camera.start();
 
 		try {
@@ -208,8 +211,7 @@ public class Robot extends IterativeRobot {
 	 * You can use it to reset subsystems before shutting down.
 	 */
 	public void disabledInit(){
-		if(camera.status)
-			camera.disable();
+		camera.disable();
 	}
 	
 	public void disabledPeriodic(){
