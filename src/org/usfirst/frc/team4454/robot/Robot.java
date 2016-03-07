@@ -111,8 +111,8 @@ public class Robot extends IterativeRobot {
 			direction = -1;
 			break;
 		}
-		final double driveTime = 4.5; // drive time in seconds
-		double power = 0.65;
+		final double driveTime = 5.5; // drive time in seconds
+		double power = 0.75;
 		SmartDashboard.putBoolean("Moving", ahrs.isMoving());
 		if (autoTimer.get() <= driveTime) {
 			if(!ahrs.isMoving() && power < 1 && autoTimer.get() > 0){
