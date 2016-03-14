@@ -2,6 +2,9 @@
 package org.usfirst.frc.team4454.robot;
 
 
+import org.usfirst.frc.team4454.robot.Robot.AutoRoutineEnum;
+import org.usfirst.frc.team4454.robot.Robot.AutonModeEnum;
+
 import com.kauailabs.navx.frc.AHRS;
 import com.ni.vision.NIVision.Image;
 
@@ -23,7 +26,10 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 import com.ni.vision.NIVision;
 import com.ni.vision.NIVision.Image;
+
+import edu.wpi.first.wpilibj.AnalogInput;
 import edu.wpi.first.wpilibj.CameraServer;
+import edu.wpi.first.wpilibj.DigitalInput;
 
 
 /**
@@ -58,9 +64,32 @@ public class Robot extends IterativeRobot {
 	boolean backup = false;
 	double backupTime = 0.02;
 	
+	DigitalInput BallSensor = new DigitalInput(0);
+
+	// In order to convert the analog voltage to distance in inches divide by 0.0098 or multiply by 5 and divide by 512.
+	AnalogInput MaxBotixX = new AnalogInput(0);
+	AnalogInput MaxBotixY = new AnalogInput(1);
+	
+	// Different autonomous routines
+	public enum AutoRoutineEnum {BREACH, AUTO_SCORE};
+	
+	// Different autonomous modes
+	public enum AutonModeEnum {GO_STRAIGHT, GO_BACK, APPROACH_WALL, TURN, APPROACH_GOAL, SCORE_BALL};
+	
+	AutoRoutineEnum AutoRoutine = AutoRoutineEnum.BREACH;
+	AutonModeEnum AutonMode = AutonModeEnum.GO_STRAIGHT;
+
 	String[] autonomousModes = {"forward", "backward"};
 	int autonomousMode = 0;
+	
+	double autoPower = 0.65;
+	final double driveTime = 5.5;
+	
 	boolean autoModeButtonDown = false;
+	
+	double turnAngle = 0;
+	double fieldLengthX = 319.72;
+	double fieldLengthY = 191.69;
 	
 	/**
 	 * This function is run when the robot is first started up and should be
@@ -97,45 +126,89 @@ public class Robot extends IterativeRobot {
 		autoTimer.reset();
 		autoTimer.start();
 	}
-
-	/**
-	 * This function is called periodically during autonomous
-	 */
+	
+	double getMaxBotixValue(AnalogInput maxBotix){
+		return maxBotix.getAverageVoltage() / 0.0098;
+	}
+	
+	@Override
 	public void autonomousPeriodic() {
-		double direction = 1;
-		switch(autonomousModes[autonomousMode]){
-		case "forward":
-			direction = 1;
-			break;
-		case "backward":
-			direction = -1;
-			break;
-		}
-		final double driveTime = 5.5; // drive time in seconds
-		double power = 0.75;
-		SmartDashboard.putBoolean("Moving", ahrs.isMoving());
-		if (autoTimer.get() <= driveTime) {
-			if(!ahrs.isMoving() && power < 1 && autoTimer.get() > 0){
-				backupTimer.reset();
-				backupTimer.start();
-				backup = true;
-				power = 1;
-			}
-			if(!backup){
-				PIDDrive(power * direction);
-			}
-			reportAHRS();
-		} else {
-			drive.tankDrive(0, 0);
-		}
-		while(backup && backupTimer.get() < backupTime){
-			PIDDrive(-power * direction);
-		}
-		if(backupTimer.get() >= backupTime){
-			backup = false;
+		reportAHRS();
+		reportSensors();
+		switch (AutoRoutine) {
+		case BREACH : auto_BREACH(); break;
+		case AUTO_SCORE : auto_AUTO_SCORE(); break;
+		}	
+	}
+	
+	void auto_STRAIGHT () {
+		PIDDrive(autoPower);
+		if (!ahrs.isMoving() && autoPower < 1 && autoTimer.get() > 0) {
+			AutonMode = AutonModeEnum.GO_BACK;
 			backupTimer.reset();
+			backupTimer.start();
+			autoPower = 1;
 		}
 	}
+	
+	
+	void auto_BREACH () {
+		switch (AutonMode) {
+		
+		case GO_STRAIGHT : 
+			if (autoTimer.get() < driveTime) {
+				auto_STRAIGHT();
+			}
+			else{
+				PIDDrive(0);
+			}
+			break;
+		case GO_BACK : 
+			if(backupTimer.get() < backupTime){
+				PIDDrive(-autoPower);
+			}
+			else {
+				AutonMode = AutonModeEnum.GO_STRAIGHT;
+			}
+		}
+		
+	}
+
+	void auto_AUTO_SCORE () {
+		switch(AutonMode){
+		case GO_STRAIGHT:
+			if(autoTimer.get() < driveTime){
+				auto_STRAIGHT();
+				if(getMaxBotixValue(MaxBotixY) == -131.18 / 163.13 * getMaxBotixValue(MaxBotixX) + 113.32){
+					AutonMode = AutonModeEnum.TURN;
+					turnAngle = Math.atan((fieldLengthX / 2 - getMaxBotixValue(MaxBotixX)) / getMaxBotixValue(MaxBotixY));
+					ahrs.zeroYaw();
+					AutonMode = AutonModeEnum.TURN;
+				}
+			}		
+		break;
+		case GO_BACK:
+			
+		break;
+		case TURN:
+			while(ahrs.getYaw() < turnAngle){
+				drive.tankDrive(0.5, 0);
+			}
+			AutonMode = AutonModeEnum.APPROACH_GOAL;
+			break;
+		case APPROACH_GOAL:
+			while(getMaxBotixValue(MaxBotixY) > 7){
+				PIDDrive(autoPower);
+			}
+			AutonMode = AutonModeEnum.SCORE_BALL;
+			break;
+		case SCORE_BALL:
+			setIntake(-1);
+			break;
+		}
+		
+	}
+	
 	void PIDDrive(double power){
 		final double kP = -0.01;
 		double yaw = ahrs.getYaw();
@@ -156,6 +229,9 @@ public class Robot extends IterativeRobot {
 	 * This function is called periodically during operator control
 	 */
 	public void teleopPeriodic() {
+		reportAHRS();
+		reportSensors();
+		
 		double scale = 0.75;
 
 		if ( leftStick.getTrigger() || rightStick.getTrigger() ) {
@@ -195,6 +271,8 @@ public class Robot extends IterativeRobot {
 	}
 
 	public void setIntake (double level) {
+		if(level > 0 && !BallSensor.get() && !operatorStick.getRawButton(3))
+			return;
 		
 		// scale down power for pulling the ball in but allow full power for output.
 		if (level > 0) {
@@ -215,17 +293,24 @@ public class Robot extends IterativeRobot {
 	}
 	
 	public void disabledPeriodic(){
+		int idx;
+		
 		if(operatorStick.getRawButton(4) && !autoModeButtonDown){
 			autoModeButtonDown = true;
-			autonomousMode++;
-			if(autonomousMode >= autonomousModes.length){
-				autonomousMode = 0;
-			}
+			
+			// Get current index
+			idx = AutoRoutine.ordinal();
+			
+			// Get index of next choice with wraparound
+			idx = (idx + 1) % (AutoRoutineEnum.values().length);
+			
+			AutoRoutine = AutoRoutineEnum.values()[idx];
 		}
 		if(!operatorStick.getRawButton(4)){
 			autoModeButtonDown = false;
 		}
-		SmartDashboard.putString("Auto Mode", autonomousModes[autonomousMode]);
+		
+		SmartDashboard.putString("Auto Routine", AutoRoutine.name());
 	}
 
 	/**
@@ -233,6 +318,12 @@ public class Robot extends IterativeRobot {
 	 */
 	public void testPeriodic() {
 
+	}
+	
+	public void reportSensors() {
+		SmartDashboard.putBoolean(  "Ball Sensor",   BallSensor.get());
+		SmartDashboard.putNumber(   "MaxBotix X",   getMaxBotixValue(MaxBotixX));
+		SmartDashboard.putNumber(   "MaxBotix Y",   getMaxBotixValue(MaxBotixY));
 	}
 
 	public void reportAHRS () {
