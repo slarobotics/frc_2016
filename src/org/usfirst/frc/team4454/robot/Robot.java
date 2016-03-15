@@ -131,6 +131,10 @@ public class Robot extends IterativeRobot {
 		return maxBotix.getAverageVoltage() / 0.0098;
 	}
 	
+	boolean checkGoalLineReached(double tolerance){
+		return getMaxBotixValue(MaxBotixY) <= (-131.18 / 163.13 * getMaxBotixValue(MaxBotixX) + 113.32) + tolerance && getMaxBotixValue(MaxBotixY) >= (-131.18 / 163.13 * getMaxBotixValue(MaxBotixX) + 113.32) - tolerance;
+	}
+	
 	@Override
 	public void autonomousPeriodic() {
 		reportAHRS();
@@ -156,6 +160,7 @@ public class Robot extends IterativeRobot {
 		switch (AutonMode) {
 		
 		case GO_STRAIGHT : 
+			System.out.println("Going Straight in Auto Breach");
 			if (autoTimer.get() < driveTime) {
 				auto_STRAIGHT();
 			}
@@ -164,6 +169,7 @@ public class Robot extends IterativeRobot {
 			}
 			break;
 		case GO_BACK : 
+			System.out.println("Going Back in Auto Breach");
 			if(backupTimer.get() < backupTime){
 				PIDDrive(-autoPower);
 			}
@@ -177,9 +183,10 @@ public class Robot extends IterativeRobot {
 	void auto_AUTO_SCORE () {
 		switch(AutonMode){
 		case GO_STRAIGHT:
+			System.out.println("Going Straight in Auto Score");
 			if(autoTimer.get() < driveTime){
 				auto_STRAIGHT();
-				if(getMaxBotixValue(MaxBotixY) == -131.18 / 163.13 * getMaxBotixValue(MaxBotixX) + 113.32){
+				if(checkGoalLineReached(2)){
 					AutonMode = AutonModeEnum.TURN;
 					turnAngle = Math.atan((fieldLengthX / 2 - getMaxBotixValue(MaxBotixX)) / getMaxBotixValue(MaxBotixY));
 					ahrs.zeroYaw();
@@ -188,21 +195,30 @@ public class Robot extends IterativeRobot {
 			}		
 		break;
 		case GO_BACK:
-			
+			System.out.println("Going Back in Auto Score");
+			if(backupTimer.get() < backupTime){
+				PIDDrive(-autoPower);
+			}
+			else {
+				AutonMode = AutonModeEnum.GO_STRAIGHT;
+			}
 		break;
 		case TURN:
+			System.out.println("Turning in Auto Score");
 			while(ahrs.getYaw() < turnAngle){
 				drive.tankDrive(0.5, 0);
 			}
 			AutonMode = AutonModeEnum.APPROACH_GOAL;
 			break;
 		case APPROACH_GOAL:
+			System.out.println("Approaching goal in Auto Score");
 			while(getMaxBotixValue(MaxBotixY) > 7){
 				PIDDrive(autoPower);
 			}
 			AutonMode = AutonModeEnum.SCORE_BALL;
 			break;
 		case SCORE_BALL:
+			System.out.println("Scoring in Auto Score");
 			setIntake(-1);
 			break;
 		}
