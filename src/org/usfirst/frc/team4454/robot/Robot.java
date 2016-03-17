@@ -1,34 +1,28 @@
 
 package org.usfirst.frc.team4454.robot;
 
-
-import org.usfirst.frc.team4454.robot.Robot.AutoRoutineEnum;
-import org.usfirst.frc.team4454.robot.Robot.AutonModeEnum;
-
 import com.kauailabs.navx.frc.AHRS;
-import com.ni.vision.NIVision.Image;
 
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SPI;
-import edu.wpi.first.wpilibj.I2C;
-import edu.wpi.first.wpilibj.SerialPort;
+// import edu.wpi.first.wpilibj.I2C;
+// import edu.wpi.first.wpilibj.SerialPort;
 import edu.wpi.first.wpilibj.Talon;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 
 import edu.wpi.first.wpilibj.IterativeRobot;
-import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
-import com.ni.vision.NIVision;
-import com.ni.vision.NIVision.Image;
+// import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+
+// import com.ni.vision.NIVision;
+// import com.ni.vision.NIVision.Image;
+// import edu.wpi.first.wpilibj.CameraServer;
 
 import edu.wpi.first.wpilibj.AnalogInput;
-import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.DigitalInput;
 
 
@@ -121,6 +115,7 @@ public class Robot extends IterativeRobot {
 	 * You can add additional auto modes by adding additional comparisons to the switch structure below with additional strings.
 	 * If using the SendableChooser make sure to add them to the chooser code above as well.
 	 */
+	@Override
 	public void autonomousInit() {
 		ahrs.zeroYaw();
 		autoTimer.reset();
@@ -155,10 +150,10 @@ public class Robot extends IterativeRobot {
 		}
 	}
 	
-	
+
 	void auto_BREACH () {
 		switch (AutonMode) {
-		
+
 		case GO_STRAIGHT : 
 			System.out.println("Going Straight in Auto Breach");
 			if (autoTimer.get() < driveTime) {
@@ -168,6 +163,7 @@ public class Robot extends IterativeRobot {
 				PIDDrive(0);
 			}
 			break;
+
 		case GO_BACK : 
 			System.out.println("Going Back in Auto Breach");
 			if(backupTimer.get() < backupTime){
@@ -176,12 +172,15 @@ public class Robot extends IterativeRobot {
 			else {
 				AutonMode = AutonModeEnum.GO_STRAIGHT;
 			}
+
+		default: break;
 		}
-		
+
 	}
 
 	void auto_AUTO_SCORE () {
 		switch(AutonMode){
+
 		case GO_STRAIGHT:
 			System.out.println("Going Straight in Auto Score");
 			if(autoTimer.get() < driveTime){
@@ -193,7 +192,8 @@ public class Robot extends IterativeRobot {
 					AutonMode = AutonModeEnum.TURN;
 				}
 			}		
-		break;
+			break;
+
 		case GO_BACK:
 			System.out.println("Going Back in Auto Score");
 			if(backupTimer.get() < backupTime){
@@ -202,7 +202,8 @@ public class Robot extends IterativeRobot {
 			else {
 				AutonMode = AutonModeEnum.GO_STRAIGHT;
 			}
-		break;
+			break;
+
 		case TURN:
 			System.out.println("Turning in Auto Score");
 			while(ahrs.getYaw() < turnAngle){
@@ -210,6 +211,7 @@ public class Robot extends IterativeRobot {
 			}
 			AutonMode = AutonModeEnum.APPROACH_GOAL;
 			break;
+
 		case APPROACH_GOAL:
 			System.out.println("Approaching goal in Auto Score");
 			while(getMaxBotixValue(MaxBotixY) > 7){
@@ -217,14 +219,18 @@ public class Robot extends IterativeRobot {
 			}
 			AutonMode = AutonModeEnum.SCORE_BALL;
 			break;
+
 		case SCORE_BALL:
 			System.out.println("Scoring in Auto Score");
 			setIntake(-1);
 			break;
+
+		default:
+			break;
 		}
-		
+
 	}
-	
+
 	void PIDDrive(double power){
 		final double kP = -0.01;
 		double yaw = ahrs.getYaw();
@@ -236,7 +242,10 @@ public class Robot extends IterativeRobot {
 
 		drive.tankDrive(left, right);
 	}
-	public void teleopInit() {		
+	
+	
+	@Override
+	public void teleopInit() {
 		camera.enable();
 		ahrs.zeroYaw();
 	}
@@ -244,6 +253,7 @@ public class Robot extends IterativeRobot {
 	/**
 	 * This function is called periodically during operator control
 	 */
+	@Override
 	public void teleopPeriodic() {
 		reportAHRS();
 		reportSensors();
@@ -304,16 +314,23 @@ public class Robot extends IterativeRobot {
 	 * This function is called when the disabled button is hit.
 	 * You can use it to reset subsystems before shutting down.
 	 */
+	@Override
 	public void disabledInit(){
 		camera.disable();
 	}
 	
+	// This method looks for transitions on the auton button - points where the button changes from off to on
+	boolean CheckAutonButton () {
+		boolean lastValue = autoModeButtonDown;
+		autoModeButtonDown = operatorStick.getRawButton(4);
+		return (autoModeButtonDown && !lastValue);
+	}
+	
+	@Override
 	public void disabledPeriodic(){
 		int idx;
 		
-		if(operatorStick.getRawButton(4) && !autoModeButtonDown){
-			autoModeButtonDown = true;
-			
+		if (CheckAutonButton()) {	
 			// Get current index
 			idx = AutoRoutine.ordinal();
 			
@@ -322,16 +339,14 @@ public class Robot extends IterativeRobot {
 			
 			AutoRoutine = AutoRoutineEnum.values()[idx];
 		}
-		if(!operatorStick.getRawButton(4)){
-			autoModeButtonDown = false;
-		}
-		
+
 		SmartDashboard.putString("Auto Routine", AutoRoutine.name());
 	}
 
 	/**
 	 * This function is called periodically during test mode
 	 */
+	@Override
 	public void testPeriodic() {
 
 	}
@@ -364,13 +379,12 @@ public class Robot extends IterativeRobot {
 
 		SmartDashboard.putNumber(   "IMU_TotalYaw",         ahrs.getAngle());
 		SmartDashboard.putNumber(   "IMU_YawRateDPS",       ahrs.getRate());
-		
+
 		SmartDashboard.putNumber(   "IMU_Accel_X",          ahrs.getWorldLinearAccelX());
 		SmartDashboard.putNumber(   "IMU_Accel_Y",          ahrs.getWorldLinearAccelY());
-		 SmartDashboard.putNumber(   "Velocity_Y",           ahrs.getVelocityY());
+		SmartDashboard.putNumber(   "Velocity_Y",           ahrs.getVelocityY());
 		SmartDashboard.putNumber(   "Velocity_X",           ahrs.getVelocityX());
-		
-
+	
 	}
 
 }
