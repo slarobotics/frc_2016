@@ -5,12 +5,15 @@ import com.kauailabs.navx.frc.AHRS;
 
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.PowerDistributionPanel;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SPI;
 // import edu.wpi.first.wpilibj.I2C;
 // import edu.wpi.first.wpilibj.SerialPort;
 import edu.wpi.first.wpilibj.Talon;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.CANTalon.FeedbackDevice;
+import edu.wpi.first.wpilibj.CANTalon.TalonControlMode;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 
@@ -23,6 +26,7 @@ import edu.wpi.first.wpilibj.IterativeRobot;
 // import edu.wpi.first.wpilibj.CameraServer;
 
 import edu.wpi.first.wpilibj.AnalogInput;
+import edu.wpi.first.wpilibj.CANTalon;
 import edu.wpi.first.wpilibj.DigitalInput;
 
 
@@ -46,6 +50,11 @@ public class Robot extends IterativeRobot {
 
 	Talon intake1          = new Talon(4);
 	Talon intake2          = new Talon(5);
+	
+	CANTalon intakeHeight = new CANTalon(1);
+	CANTalon intakeHeight2 = new CANTalon(2);
+	
+	PowerDistributionPanel PDP = new PowerDistributionPanel(0);
 
 	RobotDrive drive = new RobotDrive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor);
 
@@ -104,6 +113,22 @@ public class Robot extends IterativeRobot {
 		} catch (RuntimeException ex ) {
 			DriverStation.reportError("Error instantiating navX MXP:  " + ex.getMessage(), true);
 		}
+		
+		intakeHeight2.changeControlMode(TalonControlMode.Follower);
+		intakeHeight2.set(intakeHeight.getDeviceID());
+		int absolutePosition = intakeHeight.getPulseWidthPosition() & 0xFFF;
+		intakeHeight.setEncPosition(absolutePosition);
+		intakeHeight.setFeedbackDevice(FeedbackDevice.CtreMagEncoder_Relative);
+		intakeHeight.reverseSensor(false);
+		//intakeHeight.setFeedbackDevice(FeedbackDevice.CtreMagEncoder_Absolute);
+		intakeHeight.changeControlMode(TalonControlMode.Position);
+		intakeHeight.configNominalOutputVoltage(+0f, -0f);
+		intakeHeight.configPeakOutputVoltage(+12f, -12f);
+		intakeHeight.setAllowableClosedLoopErr(100);
+		intakeHeight.setProfile(0);
+		intakeHeight.setF(0);
+		intakeHeight.setPID(0.5, 0, 0);
+		//intakeHeight.enableControl();
 	}
 
 	/**
@@ -123,7 +148,7 @@ public class Robot extends IterativeRobot {
 	}
 	
 	double getMaxBotixValue(AnalogInput maxBotix){
-		return maxBotix.getAverageVoltage() / 0.0098;
+		return maxBotix.getVoltage() / 0.0098;
 	}
 	
 	boolean checkGoalLineReached(double tolerance){
@@ -248,6 +273,7 @@ public class Robot extends IterativeRobot {
 	public void teleopInit() {
 		camera.enable();
 		ahrs.zeroYaw();
+		
 	}
 
 	/**
@@ -255,6 +281,7 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void teleopPeriodic() {
+		intakeHeight.set(10);
 		reportAHRS();
 		reportSensors();
 		
@@ -355,6 +382,14 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putBoolean(  "Ball Sensor",   BallSensor.get());
 		SmartDashboard.putNumber(   "MaxBotix X",   getMaxBotixValue(MaxBotixX));
 		SmartDashboard.putNumber(   "MaxBotix Y",   getMaxBotixValue(MaxBotixY));
+		SmartDashboard.putNumber("Encoder position", ((int)Math.signum(intakeHeight.getPulseWidthPosition())) * Math.abs(intakeHeight.getPulseWidthPosition()) % 4096);
+		SmartDashboard.putNumber("Relative Encoder Position", intakeHeight.getPosition());
+		SmartDashboard.putNumber("Number of encoder rotations", ((int)Math.signum(intakeHeight.getPulseWidthPosition())) * Math.abs(intakeHeight.getPulseWidthPosition()) / 4096);
+		SmartDashboard.putNumber("Current Draw", PDP.getTotalCurrent());
+		SmartDashboard.putBoolean("TalonEnabled", intakeHeight.isEnabled());
+		SmartDashboard.putBoolean("TalonControlEnabled", intakeHeight.isControlEnabled());
+		SmartDashboard.putNumber("ClosedLoopError", intakeHeight.getClosedLoopError());
+		SmartDashboard.putNumber("ControlVal", operatorStick.getY());
 	}
 
 	public void reportAHRS () {
