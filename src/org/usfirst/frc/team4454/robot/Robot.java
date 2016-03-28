@@ -12,9 +12,10 @@ import edu.wpi.first.wpilibj.SPI;
 // import edu.wpi.first.wpilibj.SerialPort;
 import edu.wpi.first.wpilibj.Talon;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.CANTalon.FeedbackDevice;
-import edu.wpi.first.wpilibj.CANTalon.TalonControlMode;
+//import edu.wpi.first.wpilibj.CANTalon.FeedbackDevice;
+//import edu.wpi.first.wpilibj.CANTalon.TalonControlMode;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.CameraServer;
 
 
 import edu.wpi.first.wpilibj.IterativeRobot;
@@ -26,7 +27,8 @@ import edu.wpi.first.wpilibj.IterativeRobot;
 // import edu.wpi.first.wpilibj.CameraServer;
 
 import edu.wpi.first.wpilibj.AnalogInput;
-import edu.wpi.first.wpilibj.CANTalon;
+import edu.wpi.first.wpilibj.CameraServer;
+//import edu.wpi.first.wpilibj.CANTalon;
 import edu.wpi.first.wpilibj.DigitalInput;
 
 
@@ -51,21 +53,21 @@ public class Robot extends IterativeRobot {
 	Talon intake1          = new Talon(4);
 	Talon intake2          = new Talon(5);
 	
-	CANTalon intakeHeight = new CANTalon(1);
-	CANTalon intakeHeight2 = new CANTalon(2);
+	//CANTalon intakeHeight = new CANTalon(1);
+	//CANTalon intakeHeight2 = new CANTalon(2);
 	
 	PowerDistributionPanel PDP = new PowerDistributionPanel(0);
 
 	RobotDrive drive = new RobotDrive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor);
 
-	Camera camera;
+	//Camera camera;
 
 	AHRS ahrs;
 
 	Timer autoTimer = new Timer();
 	Timer backupTimer = new Timer();
 	boolean backup = false;
-	double backupTime = 0.02;
+	double backupTime = 2;
 	
 	DigitalInput BallSensor = new DigitalInput(0);
 
@@ -74,10 +76,10 @@ public class Robot extends IterativeRobot {
 	AnalogInput MaxBotixY = new AnalogInput(1);
 	
 	// Different autonomous routines
-	public enum AutoRoutineEnum {BREACH, AUTO_SCORE};
+	public enum AutoRoutineEnum {BREACH, SIMPLE};
 	
 	// Different autonomous modes
-	public enum AutonModeEnum {GO_STRAIGHT, GO_BACK, APPROACH_WALL, TURN, APPROACH_GOAL, SCORE_BALL};
+	public enum AutonModeEnum {GO_STRAIGHT, GO_BACK, APPROACH_WALL, TURN, APPROACH_GOAL, SCORE_BALL, END};
 	
 	AutoRoutineEnum AutoRoutine = AutoRoutineEnum.BREACH;
 	AutonModeEnum AutonMode = AutonModeEnum.GO_STRAIGHT;
@@ -101,9 +103,11 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void robotInit() {
 
-		System.out.println("Starting camera thread");
-		camera = new Camera();
-		camera.start();
+		System.out.println("Enabling camera");
+		CameraServer.getInstance().setQuality(50);
+		CameraServer.getInstance().startAutomaticCapture("cam0");
+		//camera = new Camera();
+		//camera.start();
 
 		try {
 			/* Communicate w/navX MXP via the MXP SPI Bus.                                     */
@@ -114,7 +118,7 @@ public class Robot extends IterativeRobot {
 			DriverStation.reportError("Error instantiating navX MXP:  " + ex.getMessage(), true);
 		}
 		
-		intakeHeight2.changeControlMode(TalonControlMode.Follower);
+		/*intakeHeight2.changeControlMode(TalonControlMode.Follower);
 		intakeHeight2.set(intakeHeight.getDeviceID());
 		int absolutePosition = intakeHeight.getPulseWidthPosition() & 0xFFF;
 		intakeHeight.setEncPosition(absolutePosition);
@@ -127,7 +131,7 @@ public class Robot extends IterativeRobot {
 		intakeHeight.setAllowableClosedLoopErr(100);
 		intakeHeight.setProfile(0);
 		intakeHeight.setF(0);
-		intakeHeight.setPID(0.5, 0, 0);
+		intakeHeight.setPID(0.5, 0, 0);*/
 		//intakeHeight.enableControl();
 	}
 
@@ -157,17 +161,26 @@ public class Robot extends IterativeRobot {
 	
 	@Override
 	public void autonomousPeriodic() {
-		reportAHRS();
 		reportSensors();
 		switch (AutoRoutine) {
 		case BREACH : auto_BREACH(); break;
-		case AUTO_SCORE : auto_AUTO_SCORE(); break;
+		//case AUTO_SCORE : auto_AUTO_SCORE(); break;
+		case SIMPLE: auto_SIMPLE(); break;
 		}	
+	}
+	
+	void auto_SIMPLE(){
+		if(autoTimer.get() < driveTime){
+			PIDDrive(0.65);
+		}
+		else{
+			PIDDrive(0);
+		}
 	}
 	
 	void auto_STRAIGHT () {
 		PIDDrive(autoPower);
-		if (!ahrs.isMoving() && autoPower < 1 && autoTimer.get() > 0) {
+		if (!ahrs.isMoving() && autoPower < 1 && autoTimer.get() > 0.5) {
 			AutonMode = AutonModeEnum.GO_BACK;
 			backupTimer.reset();
 			backupTimer.start();
@@ -185,7 +198,7 @@ public class Robot extends IterativeRobot {
 				auto_STRAIGHT();
 			}
 			else{
-				PIDDrive(0);
+				AutonMode = AutonModeEnum.END;
 			}
 			break;
 
@@ -196,7 +209,12 @@ public class Robot extends IterativeRobot {
 			}
 			else {
 				AutonMode = AutonModeEnum.GO_STRAIGHT;
+				autoTimer.reset();
 			}
+			
+		case END:
+			PIDDrive(0);
+			break;
 
 		default: break;
 		}
@@ -271,7 +289,7 @@ public class Robot extends IterativeRobot {
 	
 	@Override
 	public void teleopInit() {
-		camera.enable();
+		//camera.enable();
 		ahrs.zeroYaw();
 		
 	}
@@ -281,8 +299,7 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void teleopPeriodic() {
-		intakeHeight.set(10);
-		reportAHRS();
+		//intakeHeight.set(10);
 		reportSensors();
 		
 		double scale = 0.75;
@@ -308,7 +325,6 @@ public class Robot extends IterativeRobot {
 			this.setIntake(-operatorStick.getRawAxis(3));
 		else
 			this.setIntake(0);
-		reportAHRS();
 	}
 	
 	public void adaptiveDrive(double l, double r){
@@ -324,11 +340,10 @@ public class Robot extends IterativeRobot {
 	}
 
 	public void setIntake (double level) {
-		if(level > 0 && !BallSensor.get() && !operatorStick.getRawButton(3))
-			return;
-		
-		// scale down power for pulling the ball in but allow full power for output.
-		if (level > 0) {
+		if(level > 0 && !BallSensor.get() && !operatorStick.getRawButton(3)){
+			level = 0;
+		} else if (level > 0) {
+			// scale down power for pulling the ball in but allow full power for output.
 			level *= 0.5;
 		}
 		
@@ -343,7 +358,7 @@ public class Robot extends IterativeRobot {
 	 */
 	@Override
 	public void disabledInit(){
-		camera.disable();
+	//	camera.disable();
 	}
 	
 	// This method looks for transitions on the auton button - points where the button changes from off to on
@@ -365,6 +380,7 @@ public class Robot extends IterativeRobot {
 			idx = (idx + 1) % (AutoRoutineEnum.values().length);
 			
 			AutoRoutine = AutoRoutineEnum.values()[idx];
+			AutonMode = AutonModeEnum.GO_STRAIGHT;
 		}
 
 		SmartDashboard.putString("Auto Routine", AutoRoutine.name());
@@ -380,46 +396,15 @@ public class Robot extends IterativeRobot {
 	
 	public void reportSensors() {
 		SmartDashboard.putBoolean(  "Ball Sensor",   BallSensor.get());
-		SmartDashboard.putNumber(   "MaxBotix X",   getMaxBotixValue(MaxBotixX));
-		SmartDashboard.putNumber(   "MaxBotix Y",   getMaxBotixValue(MaxBotixY));
-		SmartDashboard.putNumber("Encoder position", ((int)Math.signum(intakeHeight.getPulseWidthPosition())) * Math.abs(intakeHeight.getPulseWidthPosition()) % 4096);
+		SmartDashboard.putNumber(   "IMU_Yaw",              ahrs.getYaw());
+		SmartDashboard.putString("Auto Mode", AutonMode.name());
+		SmartDashboard.putNumber("Current Draw", PDP.getTotalCurrent());
+		/*SmartDashboard.putNumber("Encoder position", ((int)Math.signum(intakeHeight.getPulseWidthPosition())) * Math.abs(intakeHeight.getPulseWidthPosition()) % 4096);
 		SmartDashboard.putNumber("Relative Encoder Position", intakeHeight.getPosition());
 		SmartDashboard.putNumber("Number of encoder rotations", ((int)Math.signum(intakeHeight.getPulseWidthPosition())) * Math.abs(intakeHeight.getPulseWidthPosition()) / 4096);
-		SmartDashboard.putNumber("Current Draw", PDP.getTotalCurrent());
 		SmartDashboard.putBoolean("TalonEnabled", intakeHeight.isEnabled());
 		SmartDashboard.putBoolean("TalonControlEnabled", intakeHeight.isControlEnabled());
-		SmartDashboard.putNumber("ClosedLoopError", intakeHeight.getClosedLoopError());
-		SmartDashboard.putNumber("ControlVal", operatorStick.getY());
-	}
-
-	public void reportAHRS () {
-
-		/* Display 6-axis Processed Angle Data                                      */
-		SmartDashboard.putBoolean(  "IMU_Connected",        ahrs.isConnected());
-		SmartDashboard.putBoolean(  "IMU_IsCalibrating",    ahrs.isCalibrating());
-		SmartDashboard.putNumber(   "IMU_Yaw",              ahrs.getYaw());
-		SmartDashboard.putNumber(   "IMU_Pitch",            ahrs.getPitch());
-		SmartDashboard.putNumber(   "IMU_Roll",             ahrs.getRoll());
-
-		/* Display tilt-corrected, Magnetometer-based heading (requires             */
-		/* magnetometer calibration to be useful)                                   */
-
-		SmartDashboard.putNumber(   "IMU_CompassHeading",   ahrs.getCompassHeading());
-
-		/* Display 9-axis Heading (requires magnetometer calibration to be useful)  */
-		SmartDashboard.putNumber(   "IMU_FusedHeading",     ahrs.getFusedHeading());
-
-		/* These functions are compatible w/the WPI Gyro Class, providing a simple  */
-		/* path for upgrading from the Kit-of-Parts gyro to the navx MXP            */
-
-		SmartDashboard.putNumber(   "IMU_TotalYaw",         ahrs.getAngle());
-		SmartDashboard.putNumber(   "IMU_YawRateDPS",       ahrs.getRate());
-
-		SmartDashboard.putNumber(   "IMU_Accel_X",          ahrs.getWorldLinearAccelX());
-		SmartDashboard.putNumber(   "IMU_Accel_Y",          ahrs.getWorldLinearAccelY());
-		SmartDashboard.putNumber(   "Velocity_Y",           ahrs.getVelocityY());
-		SmartDashboard.putNumber(   "Velocity_X",           ahrs.getVelocityX());
-	
+		SmartDashboard.putNumber("ClosedLoopError", intakeHeight.getClosedLoopError());*/
 	}
 
 }
