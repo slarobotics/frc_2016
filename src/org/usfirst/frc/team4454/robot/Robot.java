@@ -88,7 +88,7 @@ public class Robot extends IterativeRobot {
 	int autonomousMode = 0;
 	
 	double autoPower = 0.65;
-	final double driveTime = 5.5;
+	final double driveTime = 4.5;
 	
 	boolean autoModeButtonDown = false;
 	
@@ -194,7 +194,7 @@ public class Robot extends IterativeRobot {
 
 		case GO_STRAIGHT : 
 			System.out.println("Going Straight in Auto Breach");
-			if (autoTimer.get() < driveTime) {
+			if (getMaxBotixValue(MaxBotixY) > 7) {
 				auto_STRAIGHT();
 			}
 			else{
