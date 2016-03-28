@@ -88,7 +88,8 @@ public class Robot extends IterativeRobot {
 	int autonomousMode = 0;
 	
 	double autoPower = 0.65;
-	final double driveTime = 4.5;
+	final double driveTime = 5.5;
+	final double rampartsReachTime = 1;
 	
 	boolean autoModeButtonDown = false;
 	
@@ -185,6 +186,15 @@ public class Robot extends IterativeRobot {
 			backupTimer.reset();
 			backupTimer.start();
 			autoPower = 1;
+		}
+	}
+	
+	void auto_RAMPARTS(){
+		while(autoTimer.get() < driveTime){
+			while(autoTimer.get() < rampartsReachTime){
+				PIDDrive(autoPower);
+			}
+			drive.tankDrive(autoPower, autoPower);
 		}
 	}
 	
